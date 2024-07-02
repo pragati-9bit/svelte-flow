@@ -1,5 +1,5 @@
 <script lang="ts">
-  const onDragStart = (event: DragEvent, nodeType: string) => {
+  const onDragStart = (event: DragEvent, nodeType: any) => {
     if (!event.dataTransfer) {
       return null;
     }
