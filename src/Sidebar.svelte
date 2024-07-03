@@ -1,4 +1,6 @@
 <script lang="ts">
+   export let exportToJson;
+   export let importFromJson;
   const onDragStart = (event: DragEvent, nodeType: any) => {
     if (!event.dataTransfer) {
       return null;
@@ -34,30 +36,38 @@
       Output Node
     </div>
   </div>
+  <div>
+    <button on:click={exportToJson}>Export to JSON</button>
+    <input type="file" accept="application/json" on:change={importFromJson} />
+  </div>
 </aside>
 
 <style>
   aside {
-    width: 100%;
+    width: 15%;
+    height: 100%;
+    padding: 20px;
     background: #f4f4f4;
     font-size: 12px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    /* justify-content: center;
+    align-items: center; */
   }
 
-  .label {
+  /* .label {
     margin: 1rem 0;
     font-size: 0.9rem;
-  }
+  } */
 
-  .nodes-container {
+  /* .nodes-container {
     display: flex;
     align-items: center;
     justify-content: center;
+  } */
+  button {
+    margin: 1em;
   }
-
   .node {
     margin: 0.5rem;
     border: 1px solid #111;

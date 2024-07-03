@@ -8,7 +8,8 @@
     MiniMap,
     useSvelteFlow,
     type Node,
-    type Edge
+    type Edge,
+    type NodeClickEvent,
   } from '@xyflow/svelte';
   import Sidebar from './Sidebar.svelte';
 
@@ -18,11 +19,15 @@
   const edges = writable<Edge[]>([]);
 
   let selectedNodeId = writable<string | null>(null);
+  let nodeLabel = writable<string>('');
 
   function updateNodeLabel(newLabel: string) {
+    const currentSelectedNodeId = get(selectedNodeId);
+    if (!currentSelectedNodeId) return;
+
     nodes.update(existingNodes => {
       return existingNodes.map(node => {
-        if (node.id === get(selectedNodeId)) {
+        if (node.id === currentSelectedNodeId) {
           return {
             ...node,
             data: {
@@ -34,12 +39,13 @@
         return node;
       });
     });
+
+    nodeLabel.set(newLabel);
   }
 
   const { screenToFlowPosition } = useSvelteFlow();
   const onDragOver = (event: DragEvent) => {
     event.preventDefault();
-
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'move';
     }
@@ -53,7 +59,6 @@
     }
 
     const type = event.dataTransfer.getData('application/svelteflow');
-
     const position = screenToFlowPosition({
       x: event.clientX,
       y: event.clientY
@@ -69,15 +74,16 @@
 
     nodes.update(existingNodes => [...existingNodes, newNode]);
     selectedNodeId.set(newNode.id);
+    nodeLabel.set(newNode.data.label);
   };
 
   const exportToJson = () => {
     const currentNodes = get(nodes);
-    const currentEdges = get(edges);
+    //const currentEdges = get(edges);
 
     const graph = {
       nodes: currentNodes,
-      edges: currentEdges
+      // edges: currentEdges
     };
 
     const json = JSON.stringify(graph, null, 2);
@@ -90,7 +96,6 @@
     a.click();
     URL.revokeObjectURL(url);
   };
-
   const importFromJson = async (event: Event) => {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) {
@@ -105,36 +110,36 @@
     edges.set(graph.edges);
   };
 
-  $: selectedNode = get(nodes).find(node => node.id === get(selectedNodeId));
+  $: selectedNode = get(nodes).find(node => node.id === get(selectedNodeId)) as Node | undefined;
+  $: if (selectedNode) {
+    nodeLabel.set(selectedNode.data.label);
+  }
 </script>
 
 <main>
-  <SvelteFlow {nodes} {edges} fitView on:dragover={onDragOver} on:drop={onDrop} on:nodeClick={(event) => selectedNodeId.set(event.node.id)}>
+  <SvelteFlow {nodes} {edges} fitView on:dragover={onDragOver} on:drop={onDrop} on:nodeClick={(event: NodeClickEvent) => {
+    selectedNodeId.set(event.node.id);
+    nodeLabel.set(event.node.data.label);
+  }}>
     <div class="updatenode__controls">
       <label>label:</label>
-      <input value={selectedNode ? selectedNode.data.label : ''} on:input={(evt) => updateNodeLabel(evt.target?.value)} />
+      <input type="text" bind:value={$nodeLabel} on:input={(evt) => updateNodeLabel(evt.target?.value)} />
     </div>
     <Controls />
     <Background variant={BackgroundVariant.Dots} />
     <MiniMap />
   </SvelteFlow>
-  <div>
-    <button on:click={exportToJson}>Export to JSON</button>
-    <input type="file" accept="application/json" on:change={importFromJson} />
-  </div>
-  <Sidebar />
+  
+  <Sidebar {exportToJson} {importFromJson}/>
 </main>
 
 <style>
   main {
     height: 100vh;
     display: flex;
-    flex-direction: column-reverse;
+    flex-direction: row-reverse;
   }
-  button {
-    margin: 1em;
-    width: 100px;
-  }
+  
   :global(.updatenode__controls) {
     position: absolute;
     right: 10px;
