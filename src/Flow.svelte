@@ -8,7 +8,7 @@
     MiniMap,
     useSvelteFlow,
     type Node,
-    type Edge
+    type Edge,
   } from '@xyflow/svelte';
   import Sidebar from './Sidebar.svelte';
 
@@ -16,6 +16,7 @@
 
   const nodes = writable<Node[]>([]);
   const edges = writable<Edge[]>([]);
+  let NodeCounter = 0;
 
   let selectedNodeId = writable<string | null>(null);
 
@@ -50,40 +51,44 @@
 
     if (!event.dataTransfer) {
       return null;
+      
     }
 
     const type = event.dataTransfer.getData('application/svelteflow');
 
+    //Position Function for drag and drop of Nodes
     const position = screenToFlowPosition({
       x: event.clientX,
       y: event.clientY
     });
 
     const newNode = {
-      id: `${Math.random()}`,
-      type,
-      position,
+      id: `${NodeCounter++}`,
+      position,   //Position Parameter for drag and drop of Nodes
       data: { label: `${type} node` },
-      origin: [0.5, 0.0]
     } satisfies Node;
-
+    
     nodes.update(existingNodes => [...existingNodes, newNode]);
     selectedNodeId.set(newNode.id);
   };
 
   const exportToJson = () => {
     const currentNodes = get(nodes);
-    const currentEdges = get(edges);
+    const simplifiedNodes = currentNodes.map((node, index) => ({
+      modelName: node.data.label,
+      position: index + 1,//position of object in JSON 
 
+       modelInput: JSON.stringify(node.data),
+     
+    }));
+    
     const graph = {
-      nodes: currentNodes,
-      edges: currentEdges
+      operators: simplifiedNodes,
     };
 
     const json = JSON.stringify(graph, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-
     const a = document.createElement('a');
     a.href = url;
     a.download = 'graph.json';
@@ -101,8 +106,12 @@
     const text = await file.text();
     const graph = JSON.parse(text);
 
-    nodes.set(graph.nodes);
-    edges.set(graph.edges);
+    const importedNodes = graph.operators.map((operator: { modelInput: string; }, index: number) => ({
+      position: `${index}`,//position of object in JSON 
+      data: JSON.parse(operator.modelInput),
+    }));
+    
+    nodes.set(importedNodes);
   };
 
   $: selectedNode = get(nodes).find(node => node.id === get(selectedNodeId));
@@ -111,7 +120,7 @@
 <main>
   <SvelteFlow {nodes} {edges} fitView on:dragover={onDragOver} on:drop={onDrop} on:nodeClick={(event) => selectedNodeId.set(event.node.id)}>
     <div class="updatenode__controls">
-      <label>label:</label>
+     <label> label: </label>
       <input value={selectedNode ? selectedNode.data.label : ''} on:input={(evt) => updateNodeLabel(evt.target?.value)} />
     </div>
     <Controls />
@@ -122,9 +131,8 @@
     <button on:click={exportToJson}>Export to JSON</button>
     <input type="file" accept="application/json" on:change={importFromJson} />
   </div>
-  <Sidebar />
+  <Sidebar/>
 </main>
-
 <style>
   main {
     height: 100vh;
